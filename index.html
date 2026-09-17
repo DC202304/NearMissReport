@@ -295,13 +295,17 @@
                 submitBtn.innerText = "⏳ 正在傳送 Email...";
 
                 const sendTime = new Date().toLocaleString('zh-HK', { hour12: false });
+                
+                // 💡 取得選取的類別名稱，並將斜線 / 轉換為空格，避免 EmailJS Subject 欄位轉義出 &#x2F;
+                const rawCategory = document.getElementById('category').value;
+                const cleanCategory = rawCategory.replace(/\//g, ' ');
 
                 const templateParams = {
                     send_time: sendTime,
                     datetime: document.getElementById('incident_datetime').value.replace('T', ' '),
                     coords: document.getElementById('coordinates_display').value,
                     location: document.getElementById('location_name').value,
-                    category: document.getElementById('category').value,
+                    category: cleanCategory,
                     description: document.getElementById('description').value,
                     reporter: document.getElementById('reporter').value || '匿名 / Anonymous',
                     photos_html: photosHtml
