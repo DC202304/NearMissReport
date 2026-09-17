@@ -13,7 +13,7 @@
         .form-group { margin-bottom: 18px; }
         label { display: block; margin-bottom: 6px; font-weight: bold; }
         input, textarea, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-        #map { height: 320px; width: 100%; margin-top: 8px; border-radius: 6px; border: 1px solid #ccc; }
+        #map { height: 320px; width: 100%; margin-top: 8px; border-radius: 6px; border: 1px solid #ccc; touch-action: pan-x pan-y; }
         
         .submit-btn { background-color: #007bff; color: white; border: none; padding: 12px 24px; cursor: pointer; border-radius: 4px; font-size: 16px; font-weight: bold; width: 100%; }
         .submit-btn:hover { background-color: #0056b3; }
@@ -282,12 +282,13 @@
                         imageUrls.push(driveLink);
                     }
 
+                    // 💡 簡化後的相片連結格式：點擊開啓相片 X
                     photosHtml = `
                         <hr style="border: 0; border-top: 1px solid #ccc; margin: 15px 0;">
                         <p style="margin-bottom: 8px; font-weight: bold;">📷 現場照片：</p>
                     ` + imageUrls.map((url, index) => `
                         <div style="margin-bottom: 8px;">
-                            📁 <a href="${url}" target="_blank" style="font-size: 13px; color: #007bff; font-weight: bold; text-decoration: underline;">點擊開啓相片 ${index + 1} (100% 無損原圖)</a>
+                            📁 <a href="${url}" target="_blank" style="font-size: 13px; color: #007bff; font-weight: bold; text-decoration: underline;">點擊開啓相片 ${index + 1}</a>
                         </div>
                     `).join('');
                 }
@@ -296,7 +297,6 @@
 
                 const sendTime = new Date().toLocaleString('zh-HK', { hour12: false });
                 
-                // 💡 取得選取的類別名稱，並將斜線 / 轉換為空格，避免 EmailJS Subject 欄位轉義出 &#x2F;
                 const rawCategory = document.getElementById('category').value;
                 const cleanCategory = rawCategory.replace(/\//g, ' ');
 
