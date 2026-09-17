@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Near Miss Report 工地險兆快報</title>
 
-    <!-- Leaflet CSS (地圖樣式) -->
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
@@ -15,7 +15,6 @@
         input, textarea, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
         #map { height: 320px; width: 100%; margin-top: 8px; border-radius: 6px; border: 1px solid #ccc; }
         
-        /* 按鈕樣式 */
         .submit-btn { background-color: #007bff; color: white; border: none; padding: 12px 24px; cursor: pointer; border-radius: 4px; font-size: 16px; font-weight: bold; width: 100%; }
         .submit-btn:hover { background-color: #0056b3; }
         .submit-btn:disabled { background-color: #6c757d; cursor: not-allowed; }
@@ -26,89 +25,58 @@
         .hint { font-size: 0.85em; color: #666; font-weight: normal; }
         .subtitle { color: #555; margin-top: -10px; margin-bottom: 25px; }
 
-        /* 照片預覽與清除按鈕樣式 */
-        .preview-container { margin-top: 10px; display: none; position: relative; }
-        .preview-image { max-width: 100%; max-height: 200px; border-radius: 6px; border: 1px solid #ddd; object-fit: contain; }
-        .remove-photo-btn {
-            display: inline-block;
-            margin-top: 6px;
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-        }
-        .remove-photo-btn:hover { background-color: #bd2130; }
+        /* 多張相片預覽區 */
+        .preview-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .preview-item { position: relative; width: 100px; height: 100px; }
+        .preview-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
+        .remove-btn { position: absolute; top: -5px; right: -5px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; line-height: 18px; text-align: center; }
 
-        /* 成功提示訊息區塊 */
         .success-message { display: none; padding: 15px; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; border-radius: 4px; margin-top: 15px; font-weight: bold; text-align: center; }
     </style>
+
+    <!-- EmailJS SDK (已設置 Public Key) -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script type="text/javascript">
+        (function() {
+            emailjs.init("VEcVRiOEO0K0WqmxT");
+        })();
+    </script>
 </head>
 <body>
 
     <h2>⚠️ Near Miss Report 工地險兆快報</h2>
     <p class="subtitle">請協助填寫您發現的潛在危險或工地險兆事件。<br><span style="font-size: 0.9em; color: #666;">Please report any near miss or potential hazards identified on site.</span></p>
 
-    <!-- ⚠️ 請替換 TARGET_EMAIL@example.com -->
-    <form id="nearMissForm" action="https://formsubmit.co/ajax/ss3@chdx-jv.com" method="POST" enctype="multipart/form-data">
-        
-        <!-- 防止垃圾郵件 (Honeypot) -->
-        <input type="text" name="_honey" style="display:none">
-
-        <!-- 指定 Email 主旨 -->
-        <input type="hidden" name="_subject" value="New submission from Near Miss Report">
-
-        <!-- 指定 CC 電郵地址 (⚠️ 請替換 CC 電郵) -->
-        <input type="hidden" name="_cc" value="aso2@chdx-jv.com,CC_EMAIL2@example.com">
-
+    <form id="nearMissForm">
         <!-- 發生日期/時間 -->
         <div class="form-group">
-            <label for="incident_datetime">
-                發生日期 / 時間<br>
-                <span class="hint">Date and Time of Occurrence</span>
-            </label>
+            <label for="incident_datetime">發生日期 / 時間<br><span class="hint">Date and Time of Occurrence</span></label>
             <input type="datetime-local" id="incident_datetime" name="incident_datetime" required>
         </div>
 
         <!-- 地圖選址區塊 -->
         <div class="form-group">
-            <label>
-                在地圖上標示位置<br>
-                <span class="hint">Pinpoint Location on Map (Please click on the map to select location)</span>
-            </label>
+            <label>在地圖上標示位置<br><span class="hint">Pinpoint Location on Map (Please click on the map to select location)</span></label>
             <div id="map"></div>
         </div>
 
-        <!-- 隱藏欄位：儲存經緯度 -->
         <input type="hidden" id="latitude" name="latitude">
         <input type="hidden" id="longitude" name="longitude">
         
-        <!-- 已選擇經緯度顯示 -->
         <div class="form-group">
-            <label for="coordinates_display">
-                已選擇的經緯度<br>
-                <span class="hint">Selected Coordinates</span>
-            </label>
+            <label for="coordinates_display">已選擇的經緯度<br><span class="hint">Selected Coordinates</span></label>
             <input type="text" id="coordinates_display" name="coordinates_display" readonly placeholder="尚未在地圖點選位置 / Location not selected yet" style="background-color: #f8f9fa;">
         </div>
 
         <!-- 具體位置說明 -->
         <div class="form-group">
-            <label for="location_name">
-                具體位置說明<br>
-                <span class="hint">Specific Location Details</span>
-            </label>
+            <label for="location_name">具體位置說明<br><span class="hint">Specific Location Details</span></label>
             <input type="text" id="location_name" name="location_name" placeholder="例如：享和街 後巷 近燈柱GC1005 / e.g. Heung Wo Street back alley, near lamp post GC1005" required>
         </div>
 
         <!-- 事件類型 -->
         <div class="form-group">
-            <label for="category">
-                事件類型<br>
-                <span class="hint">Incident Category</span>
-            </label>
+            <label for="category">事件類型<br><span class="hint">Incident Category</span></label>
             <select id="category" name="category" required>
                 <option value="">請選擇 / Please Select</option>
                 <option value="跌倒/絆倒 Slip/Trip/Fall">跌倒 / 絆倒風險 (Slip / Trip / Fall Hazard)</option>
@@ -122,59 +90,41 @@
 
         <!-- 事件詳細描述 -->
         <div class="form-group">
-            <label for="description">
-                事件詳細描述<br>
-                <span class="hint">Incident Description</span>
-            </label>
+            <label for="description">事件詳細描述<br><span class="hint">Incident Description</span></label>
             <textarea id="description" name="description" rows="4" placeholder="請詳細說明當時情況及潛在危害... / Please describe the situation and potential hazards in detail..." required></textarea>
         </div>
 
-        <!-- 照片上傳功能 + 預覽與清除按鈕 -->
+        <!-- 照片上傳功能（支援多張選取） -->
         <div class="form-group">
-            <label for="photo">
-                現場照片上傳（選填）<br>
-                <span class="hint">Upload Photo (Optional)</span>
-            </label>
-            <input type="file" id="photo" name="photo" accept="image/*">
+            <label for="photo">現場照片上傳（可選多張）<br><span class="hint">Upload Photos (Optional, multiple allowed)</span></label>
+            <input type="file" id="photo" name="photo" accept="image/*" multiple>
             
-            <!-- 照片預覽區塊 -->
-            <div id="photoContainer" class="preview-container">
-                <img id="photoPreview" class="preview-image" src="#" alt="Photo Preview">
-                <br>
-                <button type="button" id="removePhotoBtn" class="remove-photo-btn">✕ 清除相片 / Remove Photo</button>
-            </div>
+            <div id="previewList" class="preview-list"></div>
         </div>
 
-        <!-- 回報人資訊（可選擇匿名） -->
+        <!-- 回報人資訊 -->
         <div class="form-group">
-            <label for="reporter">
-                回報人姓名 / 聯絡方式（選填，可匿名）<br>
-                <span class="hint">Reporter Name / Contact Info (Optional, can be anonymous)</span>
-            </label>
+            <label for="reporter">回報人姓名 / 聯絡方式（選填，可匿名）<br><span class="hint">Reporter Name / Contact Info (Optional, can be anonymous)</span></label>
             <input type="text" id="reporter" name="reporter" placeholder="留空代表匿名回報 / Leave blank for anonymous report">
         </div>
 
-        <!-- 提交 Email 按鈕 -->
         <button type="submit" id="submitBtn" class="submit-btn">📩 提交 Email 回報 / Submit Report</button>
 
-        <!-- Email 傳送成功提示 -->
         <div id="successMessage" class="success-message">
             ✅ Email 回報已成功送出！<br>
             <span style="font-size:0.9em; font-weight:normal;">Email report sent successfully! You can now forward it via WhatsApp below.</span>
         </div>
 
-        <!-- 💬 WhatsApp 分享按鈕 -->
         <button type="button" id="whatsappBtn" class="whatsapp-btn">💬 點擊此處透過 WhatsApp 轉發此 Report</button>
     </form>
 
-    <!-- Leaflet JS (地圖功能) -->
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const defaultLat = 22.3193;
         const defaultLng = 114.1694;
         const map = L.map('map').setView([defaultLat, defaultLng], 13);
 
-        // 🗺️ 已替換為 OpenStreetMap 官方標準圖層（無水印、無限制）
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -208,40 +158,50 @@
                 const userLng = position.coords.longitude;
                 map.setView([userLat, userLng], 16);
                 updatePosition(userLat, userLng);
-            }, function(error) {
-                console.log("Geolocation unavailable.");
             });
         }
 
+        // 多圖上傳處理與 Base64 轉換
         const photoInput = document.getElementById('photo');
-        const photoContainer = document.getElementById('photoContainer');
-        const photoPreview = document.getElementById('photoPreview');
-        const removePhotoBtn = document.getElementById('removePhotoBtn');
+        const previewList = document.getElementById('previewList');
+        let photoBase64Array = [];
 
         photoInput.addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file) {
+            const files = Array.from(event.target.files);
+            files.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    photoPreview.src = e.target.result;
-                    photoContainer.style.display = 'block';
+                    const base64Str = e.target.result;
+                    photoBase64Array.push(base64Str);
+                    renderPreviews();
                 }
                 reader.readAsDataURL(file);
-            }
+            });
         });
 
-        removePhotoBtn.addEventListener('click', function() {
-            photoInput.value = '';
-            photoPreview.src = '#';
-            photoContainer.style.display = 'none';
-        });
+        function renderPreviews() {
+            previewList.innerHTML = '';
+            photoBase64Array.forEach((src, index) => {
+                const item = document.createElement('div');
+                item.className = 'preview-item';
+                item.innerHTML = `
+                    <img src="${src}" />
+                    <button type="button" class="remove-btn" onclick="removePhoto(${index})">✕</button>
+                `;
+                previewList.appendChild(item);
+            });
+        }
+
+        window.removePhoto = function(index) {
+            photoBase64Array.splice(index, 1);
+            renderPreviews();
+        }
 
         const datetimeInput = document.getElementById('incident_datetime');
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         datetimeInput.value = now.toISOString().slice(0, 16);
 
-        // 非同步提交 Email
         const form = document.getElementById('nearMissForm');
         const submitBtn = document.getElementById('submitBtn');
         const successMessage = document.getElementById('successMessage');
@@ -262,34 +222,41 @@
             submitBtn.disabled = true;
             submitBtn.innerText = "⏳ 傳送 Email 中... / Sending Email...";
 
-            const formData = new FormData(form);
+            const sendTime = new Date().toLocaleString('zh-HK', { hour12: false });
 
-            fetch(form.action, {
-                method: "POST",
-                body: formData,
-                headers: { 'Accept': 'application/json' }
-            })
-            .then(async response => {
-                const json = await response.json().catch(() => ({}));
-                if (response.ok) {
+            let photosHtml = '';
+            if (photoBase64Array.length > 0) {
+                photosHtml = photoBase64Array.map(src => `<img src="${src}" style="max-width: 100%; max-height: 350px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ddd; display: block;" />`).join('');
+            }
+
+            const templateParams = {
+                send_time: sendTime,
+                datetime: document.getElementById('incident_datetime').value.replace('T', ' '),
+                coords: document.getElementById('coordinates_display').value,
+                location: document.getElementById('location_name').value,
+                category: document.getElementById('category').value,
+                description: document.getElementById('description').value,
+                reporter: document.getElementById('reporter').value || '匿名 / Anonymous',
+                photos_html: photosHtml
+            };
+
+            // 已放入你的 Service ID 與 Template ID
+            emailjs.send('service_dc202304', 'template_c35i3of', templateParams)
+                .then(function(response) {
                     submitBtn.innerText = "✅ Email 已成功提交 / Email Submitted";
                     successMessage.style.display = 'block';
                     whatsappBtn.style.display = 'block';
                     whatsappBtn.scrollIntoView({ behavior: 'smooth' });
-                } else {
-                    throw new Error(json.message || 'Form submission failed');
-                }
-            })
-            .catch(error => {
-                alert("❌ 傳送失敗: " + error.message + "\n\n請檢查接收 Email 是否已進行 FormSubmit 激活驗證，或檢查網路狀況。");
-                submitBtn.disabled = false;
-                submitBtn.innerText = "📩 提交 Email 回報 / Submit Report";
-            });
+                }, function(error) {
+                    alert("❌ Email 傳送失敗: " + JSON.stringify(error));
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "📩 提交 Email 回報 / Submit Report";
+                });
         });
 
-        // WhatsApp 點擊邏輯與提示
+        // WhatsApp 轉發邏輯
         whatsappBtn.addEventListener('click', function() {
-            if (photoInput.files && photoInput.files.length > 0) {
+            if (photoBase64Array.length > 0) {
                 alert("⚠️ 溫馨提示 / Notice：\n\n網頁文字已自動帶入 WhatsApp，但「現場照片」受系統限制無法自動夾帶。\n\n請在跳轉至 WhatsApp 後，手動點擊附件（📎）或相機按鈕重新上傳相片！");
             }
 
