@@ -34,7 +34,7 @@
         .success-message { display: none; padding: 15px; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; border-radius: 4px; margin-top: 15px; font-weight: bold; text-align: center; }
     </style>
 
-    <!-- EmailJS SDK (已設置 Public Key) -->
+    <!-- EmailJS SDK -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script type="text/javascript">
         (function() {
@@ -48,13 +48,11 @@
     <p class="subtitle">請協助填寫您發現的潛在危險或工地險兆事件。<br><span style="font-size: 0.9em; color: #666;">Please report any near miss or potential hazards identified on site.</span></p>
 
     <form id="nearMissForm">
-        <!-- 發生日期/時間 -->
         <div class="form-group">
             <label for="incident_datetime">發生日期 / 時間<br><span class="hint">Date and Time of Occurrence</span></label>
             <input type="datetime-local" id="incident_datetime" name="incident_datetime" required>
         </div>
 
-        <!-- 地圖選址區塊 -->
         <div class="form-group">
             <label>在地圖上標示位置<br><span class="hint">Pinpoint Location on Map (Please click on the map to select location)</span></label>
             <div id="map"></div>
@@ -68,13 +66,11 @@
             <input type="text" id="coordinates_display" name="coordinates_display" readonly placeholder="尚未在地圖點選位置 / Location not selected yet" style="background-color: #f8f9fa;">
         </div>
 
-        <!-- 具體位置說明 -->
         <div class="form-group">
             <label for="location_name">具體位置說明<br><span class="hint">Specific Location Details</span></label>
             <input type="text" id="location_name" name="location_name" placeholder="例如：享和街 後巷 近燈柱GC1005 / e.g. Heung Wo Street back alley, near lamp post GC1005" required>
         </div>
 
-        <!-- 事件類型 -->
         <div class="form-group">
             <label for="category">事件類型<br><span class="hint">Incident Category</span></label>
             <select id="category" name="category" required>
@@ -88,13 +84,11 @@
             </select>
         </div>
 
-        <!-- 事件詳細描述 -->
         <div class="form-group">
             <label for="description">事件詳細描述<br><span class="hint">Incident Description</span></label>
             <textarea id="description" name="description" rows="4" placeholder="請詳細說明當時情況及潛在危害... / Please describe the situation and potential hazards in detail..." required></textarea>
         </div>
 
-        <!-- 照片上傳功能（支援多張選取） -->
         <div class="form-group">
             <label for="photo">現場照片上傳（可選多張）<br><span class="hint">Upload Photos (Optional, multiple allowed)</span></label>
             <input type="file" id="photo" name="photo" accept="image/*" multiple>
@@ -102,7 +96,6 @@
             <div id="previewList" class="preview-list"></div>
         </div>
 
-        <!-- 回報人資訊 -->
         <div class="form-group">
             <label for="reporter">回報人姓名 / 聯絡方式（選填，可匿名）<br><span class="hint">Reporter Name / Contact Info (Optional, can be anonymous)</span></label>
             <input type="text" id="reporter" name="reporter" placeholder="留空代表匿名回報 / Leave blank for anonymous report">
@@ -161,7 +154,7 @@
             });
         }
 
-        // 多圖上傳處理與 Base64 轉換
+        // 高畫質圖片處理與壓縮 (精確控制在 20KB 左右，防止 413 錯誤)
         const photoInput = document.getElementById('photo');
         const previewList = document.getElementById('previewList');
         let photoBase64Array = [];
@@ -169,15 +162,43 @@
         photoInput.addEventListener('change', function(event) {
             const files = Array.from(event.target.files);
             files.forEach(file => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const base64Str = e.target.result;
-                    photoBase64Array.push(base64Str);
+                compressImage(file, 1000, 0.5, function(compressedBase64) {
+                    photoBase64Array.push(compressedBase64);
                     renderPreviews();
-                }
-                reader.readAsDataURL(file);
+                });
             });
+            photoInput.value = '';
         });
+
+        // 💡 自動縮圖與壓縮函數
+        function compressImage(file, maxWidth, quality, callback) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // 輸出高質素精簡 JPEG Base64
+                    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    callback(dataUrl);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
 
         function renderPreviews() {
             previewList.innerHTML = '';
@@ -240,7 +261,6 @@
                 photos_html: photosHtml
             };
 
-            // 已放入你的 Service ID 與 Template ID
             emailjs.send('service_dc202304', 'template_c35i3of', templateParams)
                 .then(function(response) {
                     submitBtn.innerText = "✅ Email 已成功提交 / Email Submitted";
