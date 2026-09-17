@@ -132,7 +132,6 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // 💡 Google Apps Script 部署成功的 Web App URL
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyz1uqLgPZczVVy7VZhaRRTrG6SrWbhoMyqA0iRR7aohjb4D9-mxFtQLGlg8hpwUcqRgA/exec";
 
         document.getElementById('devLastUpdated').innerText = 
@@ -226,7 +225,7 @@
             const base64Data = await fileToBase64(file);
             const payload = {
                 fileName: file.name,
-                mimeType: file.type,
+                mimeType: file.type || 'image/jpeg',
                 base64: base64Data
             };
 
@@ -234,6 +233,10 @@
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
+
+            if (!response.ok) {
+                throw new Error('伺服器連線失敗');
+            }
 
             const result = await response.json();
             if (result.status === 'success') {
@@ -273,12 +276,12 @@
             try {
                 if (rawFilesArray.length > 0) {
                     const imageUrls = [];
-                    for (let file of rawFilesArray) {
-                        const driveLink = await uploadRawFileToGoogleDrive(file);
+                    for (let i = 0; i < rawFilesArray.length; i++) {
+                        submitBtn.innerText = `⏳ 正在上傳第 ${i + 1}/${rawFilesArray.length} 張原圖...`;
+                        const driveLink = await uploadRawFileToGoogleDrive(rawFilesArray[i]);
                         imageUrls.push(driveLink);
                     }
 
-                    // 💡 有相片時，才生成分隔線、標題與 Google Drive 高清連結
                     photosHtml = `
                         <hr style="border: 0; border-top: 1px solid #ccc; margin: 15px 0;">
                         <p style="margin-bottom: 8px; font-weight: bold;">📷 現場照片：</p>
@@ -301,7 +304,7 @@
                     category: document.getElementById('category').value,
                     description: document.getElementById('description').value,
                     reporter: document.getElementById('reporter').value || '匿名 / Anonymous',
-                    photos_html: photosHtml // 無圖時傳送 ""，完美無錯渲染
+                    photos_html: photosHtml
                 };
 
                 await emailjs.send('service_dc202304', 'template_c35i3of', templateParams);
