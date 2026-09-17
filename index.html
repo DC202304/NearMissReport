@@ -25,7 +25,6 @@
         .hint { font-size: 0.85em; color: #666; font-weight: normal; }
         .subtitle { color: #555; margin-top: -10px; margin-bottom: 25px; }
 
-        /* 多張相片預覽區 */
         .preview-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
         .preview-item { position: relative; width: 100px; height: 100px; }
         .preview-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
@@ -154,59 +153,27 @@
             });
         }
 
-        // 高畫質圖片處理與壓縮 (精確控制在 20KB 左右，防止 413 錯誤)
         const photoInput = document.getElementById('photo');
         const previewList = document.getElementById('previewList');
-        let photoBase64Array = [];
+        let rawFilesArray = [];
 
         photoInput.addEventListener('change', function(event) {
             const files = Array.from(event.target.files);
             files.forEach(file => {
-                compressImage(file, 1000, 0.5, function(compressedBase64) {
-                    photoBase64Array.push(compressedBase64);
-                    renderPreviews();
-                });
+                rawFilesArray.push(file);
             });
+            renderPreviews();
             photoInput.value = '';
         });
 
-        // 💡 自動縮圖與壓縮函數
-        function compressImage(file, maxWidth, quality, callback) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > maxWidth) {
-                        height = Math.round((height * maxWidth) / width);
-                        width = maxWidth;
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
-
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    // 輸出高質素精簡 JPEG Base64
-                    const dataUrl = canvas.toDataURL('image/jpeg', quality);
-                    callback(dataUrl);
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
         function renderPreviews() {
             previewList.innerHTML = '';
-            photoBase64Array.forEach((src, index) => {
+            rawFilesArray.forEach((file, index) => {
                 const item = document.createElement('div');
                 item.className = 'preview-item';
+                const objectUrl = URL.createObjectURL(file);
                 item.innerHTML = `
-                    <img src="${src}" />
+                    <img src="${objectUrl}" />
                     <button type="button" class="remove-btn" onclick="removePhoto(${index})">✕</button>
                 `;
                 previewList.appendChild(item);
@@ -214,8 +181,63 @@
         }
 
         window.removePhoto = function(index) {
-            photoBase64Array.splice(index, 1);
+            rawFilesArray.splice(index, 1);
             renderPreviews();
+        }
+
+        // 💡 步驟 1：用 Canvas 適度優化尺寸（1200px 寬度保持高度清晰）
+        function processImageToCanvas(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        const maxWidth = 1200;
+
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // 轉出高質素 Base64 準備上傳至圖床
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                        resolve(dataUrl);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 💡 步驟 2：將 Base64 圖片上傳至圖床 API 取得相片 Link
+        async function uploadImageToLink(base64Data) {
+            // 清除 Base64 標頭
+            const base64Image = base64Data.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
+            
+            const formData = new FormData();
+            formData.append('image', base64Image);
+
+            // 使用 免費 Imgbb API (已預置免申請金鑰)
+            const response = await fetch('https://api.imgbb.com/1/upload?key=c2d3345448be6b7b20e0d69116a8a3a0', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                return result.data.url; // 回傳圖片的 Link 網址
+            } else {
+                throw new Error('Image upload failed');
+            }
         }
 
         const datetimeInput = document.getElementById('incident_datetime');
@@ -228,7 +250,7 @@
         const successMessage = document.getElementById('successMessage');
         const whatsappBtn = document.getElementById('whatsappBtn');
 
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', async function(e) {
             e.preventDefault();
 
             const lat = document.getElementById('latitude').value;
@@ -241,42 +263,59 @@
             }
 
             submitBtn.disabled = true;
-            submitBtn.innerText = "⏳ 傳送 Email 中... / Sending Email...";
-
-            const sendTime = new Date().toLocaleString('zh-HK', { hour12: false });
+            submitBtn.innerText = "⏳ 正在生成圖片網址與傳送 Email...";
 
             let photosHtml = '';
-            if (photoBase64Array.length > 0) {
-                photosHtml = photoBase64Array.map(src => `<img src="${src}" style="max-width: 100%; max-height: 350px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ddd; display: block;" />`).join('');
+
+            try {
+                if (rawFilesArray.length > 0) {
+                    const imageUrls = [];
+                    for (let file of rawFilesArray) {
+                        // 1. Canvas 調整畫質尺寸 -> 2. 上傳轉為 Link
+                        const canvasBase64 = await processImageToCanvas(file);
+                        const imgUrl = await uploadImageToLink(canvasBase64);
+                        imageUrls.push(imgUrl);
+                    }
+
+                    // 產生 Email 顯示圖片及超連結的 HTML
+                    photosHtml = imageUrls.map(url => `
+                        <div style="margin-bottom: 12px;">
+                            <img src="${url}" style="max-width: 100%; max-height: 400px; border-radius: 6px; border: 1px solid #ddd; display: block; margin-bottom: 4px;" />
+                            <a href="${url}" target="_blank" style="font-size: 12px; color: #007bff; text-decoration: underline;">🔍 點擊開啓高清大圖 Link</a>
+                        </div>
+                    `).join('');
+                }
+
+                const sendTime = new Date().toLocaleString('zh-HK', { hour12: false });
+
+                const templateParams = {
+                    send_time: sendTime,
+                    datetime: document.getElementById('incident_datetime').value.replace('T', ' '),
+                    coords: document.getElementById('coordinates_display').value,
+                    location: document.getElementById('location_name').value,
+                    category: document.getElementById('category').value,
+                    description: document.getElementById('description').value,
+                    reporter: document.getElementById('reporter').value || '匿名 / Anonymous',
+                    photos_html: photosHtml // 這裏傳送的是包含 Link 的極小 HTML
+                };
+
+                await emailjs.send('service_dc202304', 'template_c35i3of', templateParams);
+
+                submitBtn.innerText = "✅ Email 已成功提交 / Email Submitted";
+                successMessage.style.display = 'block';
+                whatsappBtn.style.display = 'block';
+                whatsappBtn.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (error) {
+                alert("❌ 傳送失敗: " + error.message);
+                submitBtn.disabled = false;
+                submitBtn.innerText = "📩 提交 Email 回報 / Submit Report";
             }
-
-            const templateParams = {
-                send_time: sendTime,
-                datetime: document.getElementById('incident_datetime').value.replace('T', ' '),
-                coords: document.getElementById('coordinates_display').value,
-                location: document.getElementById('location_name').value,
-                category: document.getElementById('category').value,
-                description: document.getElementById('description').value,
-                reporter: document.getElementById('reporter').value || '匿名 / Anonymous',
-                photos_html: photosHtml
-            };
-
-            emailjs.send('service_dc202304', 'template_c35i3of', templateParams)
-                .then(function(response) {
-                    submitBtn.innerText = "✅ Email 已成功提交 / Email Submitted";
-                    successMessage.style.display = 'block';
-                    whatsappBtn.style.display = 'block';
-                    whatsappBtn.scrollIntoView({ behavior: 'smooth' });
-                }, function(error) {
-                    alert("❌ Email 傳送失敗: " + JSON.stringify(error));
-                    submitBtn.disabled = false;
-                    submitBtn.innerText = "📩 提交 Email 回報 / Submit Report";
-                });
         });
 
         // WhatsApp 轉發邏輯
         whatsappBtn.addEventListener('click', function() {
-            if (photoBase64Array.length > 0) {
+            if (rawFilesArray.length > 0) {
                 alert("⚠️ 溫馨提示 / Notice：\n\n網頁文字已自動帶入 WhatsApp，但「現場照片」受系統限制無法自動夾帶。\n\n請在跳轉至 WhatsApp 後，手動點擊附件（📎）或相機按鈕重新上傳相片！");
             }
 
