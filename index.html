@@ -3,19 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Near Miss Report 工地險失快報</title>
+    <title>工地安全與違法事項通報系統</title>
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 30px auto; padding: 20px; line-height: 1.5; }
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 15px; line-height: 1.5; background-color: #f8f9fa; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        
+        /* 分頁 Tab 樣式 */
+        .tab-container { display: flex; margin-bottom: 20px; border-bottom: 2px solid #e9ecef; }
+        .tab-button { flex: 1; padding: 12px 8px; font-size: 15px; font-weight: bold; text-align: center; border: none; background: none; cursor: pointer; color: #6c757d; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .tab-button.active { color: #dc3545; border-bottom-color: #dc3545; background-color: #fff5f5; border-radius: 6px 6px 0 0; }
+        .tab-button.tab-nearmiss.active { color: #007bff; border-bottom-color: #007bff; background-color: #f0f7ff; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
         .form-group { margin-bottom: 18px; }
         label { display: block; margin-bottom: 6px; font-weight: bold; }
         input, textarea, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-        #map { height: 320px; width: 100%; margin-top: 8px; border-radius: 6px; border: 1px solid #ccc; touch-action: pan-x pan-y; }
+        .map-box { height: 300px; width: 100%; margin-top: 8px; border-radius: 6px; border: 1px solid #ccc; touch-action: pan-x pan-y; }
         
         .submit-btn { background-color: #007bff; color: white; border: none; padding: 12px 24px; cursor: pointer; border-radius: 4px; font-size: 16px; font-weight: bold; width: 100%; }
+        .submit-btn.unsafe-btn { background-color: #dc3545; }
+        .submit-btn.unsafe-btn:hover { background-color: #c82333; }
         .submit-btn:hover { background-color: #0056b3; }
         .submit-btn:disabled { background-color: #6c757d; cursor: not-allowed; }
 
@@ -23,16 +36,15 @@
         .whatsapp-btn:hover { background-color: #128C7E; }
         
         .hint { font-size: 0.85em; color: #666; font-weight: normal; }
-        .subtitle { color: #555; margin-top: -10px; margin-bottom: 25px; }
+        .subtitle { color: #555; margin-top: -5px; margin-bottom: 20px; font-size: 0.95em; }
 
         .preview-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
-        .preview-item { position: relative; width: 100px; height: 100px; }
+        .preview-item { position: relative; width: 90px; height: 90px; }
         .preview-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
         .remove-btn { position: absolute; top: -5px; right: -5px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; line-height: 18px; text-align: center; }
 
         .success-message { display: none; padding: 15px; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; border-radius: 4px; margin-top: 15px; font-weight: bold; text-align: center; }
 
-        /* Developer 右下角 Last Updated 樣式 */
         .dev-last-updated {
             position: fixed;
             bottom: 6px;
@@ -60,75 +72,150 @@
 </head>
 <body>
 
-    <h2>⚠️ Near Miss Report 工地險失快報</h2>
-    <p class="subtitle">請協助填寫您發現的潛在危險或工地險失事件。<br><span style="font-size: 0.9em; color: #666;">Please report any near miss or potential hazards identified on site.</span></p>
-
-    <form id="nearMissForm">
-        <div class="form-group">
-            <label for="incident_datetime">發生日期 / 時間<br><span class="hint">Date and Time of Occurrence</span></label>
-            <input type="datetime-local" id="incident_datetime" name="incident_datetime" required>
+    <div class="container">
+        <!-- 分頁切換按鈕 -->
+        <div class="tab-container">
+            <button class="tab-button tab-nearmiss active" onclick="switchTab('nearmiss')">⚠️ 險兆快報<br><span style="font-size: 0.8em;">Near Miss</span></button>
+            <button class="tab-button tab-unsafe" onclick="switchTab('unsafe')">🚨 舉報不安全/違法<br><span style="font-size: 0.8em;">Unsafe/Illegal Report</span></button>
         </div>
 
-        <div class="form-group">
-            <label>在地圖上標示位置<br><span class="hint">Pinpoint Location on Map (Please click on the map to select location)</span></label>
-            <div id="map"></div>
+        <!-- ==================== 分頁 1: Near Miss 險兆快報 ==================== -->
+        <div id="tab-nearmiss" class="tab-content active">
+            <h2>⚠️ Near Miss Report 工地險兆快報</h2>
+            <p class="subtitle">請協助填寫您發現的潛在危險或工地險兆事件。<br><span class="hint">Please report any near miss or potential hazards identified on site.</span></p>
+
+            <form id="nearMissForm">
+                <div class="form-group">
+                    <label for="incident_datetime">發生日期 / 時間<br><span class="hint">Date and Time of Occurrence</span></label>
+                    <input type="datetime-local" id="incident_datetime" required>
+                </div>
+
+                <div class="form-group">
+                    <label>在地圖上標示位置<br><span class="hint">Pinpoint Location on Map</span></label>
+                    <div id="map" class="map-box"></div>
+                </div>
+
+                <input type="hidden" id="latitude">
+                <input type="hidden" id="longitude">
+                
+                <div class="form-group">
+                    <label for="coordinates_display">已選擇的經緯度<br><span class="hint">Selected Coordinates</span></label>
+                    <input type="text" id="coordinates_display" readonly placeholder="尚未在地圖點選位置" style="background-color: #f8f9fa;">
+                </div>
+
+                <div class="form-group">
+                    <label for="location_name">具體位置說明<br><span class="hint">Specific Location Details</span></label>
+                    <input type="text" id="location_name" placeholder="例如：享和街 後巷 近燈柱GC1005" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="category">事件類型<br><span class="hint">Incident Category</span></label>
+                    <select id="category" required>
+                        <option value="">請選擇 / Please Select</option>
+                        <option value="跌倒/絆倒 Slip/Trip/Fall">跌倒 / 絆倒風險 (Slip / Trip / Fall Hazard)</option>
+                        <option value="設備故障 Equipment Fault">設備 / 工具故障 (Equipment / Tool Fault)</option>
+                        <option value="物體掉落 Falling Object">物體掉落風險 (Falling Object Hazard)</option>
+                        <option value="電氣安全 Electrical/Fire">電氣 / 火災隱患 (Electrical / Fire Hazard)</option>
+                        <option value="高處作業 Working at Height">高處作業安全 (Working at Height)</option>
+                        <option value="其他 Others">其他 (Others)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">事件詳細描述<br><span class="hint">Incident Description</span></label>
+                    <textarea id="description" rows="4" placeholder="請詳細說明當時情況及潛在危害..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="photo">現場照片上傳（100% 原圖高清上傳，可選多張）<br><span class="hint">Upload Photos (Optional, multiple allowed)</span></label>
+                    <input type="file" id="photo" accept="image/*" multiple>
+                    <div id="previewList" class="preview-list"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="reporter">回報人姓名 / 聯絡方式（選填，可匿名）<br><span class="hint">Reporter Name / Contact Info (Optional)</span></label>
+                    <input type="text" id="reporter" placeholder="留空代表匿名回報 / Leave blank for anonymous report">
+                </div>
+
+                <button type="submit" id="submitBtn" class="submit-btn">📩 提交 Email 回報 / Submit Report</button>
+            </form>
         </div>
 
-        <input type="hidden" id="latitude" name="latitude">
-        <input type="hidden" id="longitude" name="longitude">
-        
-        <div class="form-group">
-            <label for="coordinates_display">已選擇的經緯度<br><span class="hint">Selected Coordinates</span></label>
-            <input type="text" id="coordinates_display" name="coordinates_display" readonly placeholder="尚未在地圖點選位置 / Location not selected yet" style="background-color: #f8f9fa;">
+        <!-- ==================== 分頁 2: 舉報不安全/違法事項 ==================== -->
+        <div id="tab-unsafe" class="tab-content">
+            <h2>🚨 不安全行為 / 違法事項舉報</h2>
+            <p class="subtitle">如發現任何嚴重違規、不安全操作或違法行為，請在此具體舉報。<br><span class="hint">Report serious non-compliance, unsafe practices, or illegal acts.</span></p>
+
+            <form id="unsafeForm">
+                <div class="form-group">
+                    <label for="unsafe_datetime">發現日期 / 時間<br><span class="hint">Date and Time of Observation</span></label>
+                    <input type="datetime-local" id="unsafe_datetime" required>
+                </div>
+
+                <div class="form-group">
+                    <label>在地圖上標示違規位置<br><span class="hint">Pinpoint Violation Location on Map</span></label>
+                    <div id="unsafe_map" class="map-box"></div>
+                </div>
+
+                <input type="hidden" id="unsafe_latitude">
+                <input type="hidden" id="unsafe_longitude">
+                
+                <div class="form-group">
+                    <label for="unsafe_coordinates_display">已選擇的經緯度<br><span class="hint">Selected Coordinates</span></label>
+                    <input type="text" id="unsafe_coordinates_display" readonly placeholder="尚未在地圖點選位置" style="background-color: #f8f9fa;">
+                </div>
+
+                <div class="form-group">
+                    <label for="unsafe_location">違規發生地點 / 工區名稱<br><span class="hint">Location / Site Name</span></label>
+                    <input type="text" id="unsafe_location" placeholder="例如：某某地盤 3 樓平台 / 某排水溝井口" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="unsafe_category">違規 / 違法事項類別<br><span class="hint">Violation Type</span></label>
+                    <select id="unsafe_category" required>
+                        <option value="">請選擇 / Please Select</option>
+                        <option value="無證作業 / 未授權操作 Unlicensed Operation">無證作業 / 未授權操作 (Unlicensed Operation)</option>
+                        <option value="未佩戴個人防護裝備 No PPE">未佩戴防護裝備 PPE (No Helmet/Harness/Safety Shoes)</option>
+                        <option value="密閉空間違規操作 Confined Space Violation">密閉空間違規操作 (Confined Space Violation)</option>
+                        <option value="違規吸煙 / 擅用明火 Illegal Smoking/Fire">違規吸煙 / 擅用明火 (Illegal Smoking / Open Fire)</option>
+                        <option value="違法傾倒 / 環境污染 Illegal Dumping/Pollution">違法傾倒廢料 / 環境污染 (Illegal Dumping / Pollution)</option>
+                        <option value="其他嚴重違規事項 Other Serious Violations">其他嚴重違法或違規事項 (Other Violations)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="unsafe_target">涉事單位 / 承建商 / 人員描述（若已知）<br><span class="hint">Involved Subcontractor / Vehicle / Person</span></label>
+                    <input type="text" id="unsafe_target" placeholder="例如：XX分判商工人 / 車牌號碼 AB1234 / 戴黃色頭盔者">
+                </div>
+
+                <div class="form-group">
+                    <label for="unsafe_description">違例事項詳細過程及備註<br><span class="hint">Detailed Description of Violation</span></label>
+                    <textarea id="unsafe_description" rows="4" placeholder="請詳細說明違規過程、影響範疇及相關證據說明..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="unsafe_photo">違規現場照片 / 影片截圖（高清上傳，可選多張）<br><span class="hint">Upload Photo Evidence</span></label>
+                    <input type="file" id="unsafe_photo" accept="image/*" multiple>
+                    <div id="unsafePreviewList" class="preview-list"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="unsafe_reporter">舉報人資料（預設保密，可完全匿名）<br><span class="hint">Reporter Contact (Strictly Confidential / Optional)</span></label>
+                    <input type="text" id="unsafe_reporter" placeholder="留空代表完全匿名舉報 / Confidential">
+                </div>
+
+                <button type="submit" id="unsafeSubmitBtn" class="submit-btn unsafe-btn">🚨 提交違規舉報 / Submit Violation Report</button>
+            </form>
         </div>
 
-        <div class="form-group">
-            <label for="location_name">具體位置說明<br><span class="hint">Specific Location Details</span></label>
-            <input type="text" id="location_name" name="location_name" placeholder="例如：享和街 後巷 近燈柱GC1005 / e.g. Heung Wo Street back alley, near lamp post GC1005" required>
-        </div>
-
-        <div class="form-group">
-            <label for="category">事件類型<br><span class="hint">Incident Category</span></label>
-            <select id="category" name="category" required>
-                <option value="">請選擇 / Please Select</option>
-                <option value="密閉空間工作 Confined Space Works">密閉空間工作安全 (Confined Space Works)</option>
-                <option value="道路工作安全 Road Work Safety">道路工作安全 (Road Work Safety)</option>
-                <option value="地盤整潔 Housekeeping">地盤整潔 (Housekeeping)</option>
-                <option value="跌倒/絆倒 Slip/Trip/Fall">跌倒 / 絆倒風險 (Slip / Trip / Fall Hazard)</option>
-                <option value="設備故障 Equipment Fault">設備 / 工具故障 (Equipment / Tool Fault)</option>
-                <option value="物體掉落 Falling Object">物體掉落風險 (Falling Object Hazard)</option>
-                <option value="電氣安全 Electrical/Fire">電氣 / 火災隱患 (Electrical / Fire Hazard)</option>
-                <option value="高處作業 Working at Height">高處作業安全 (Working at Height)</option>
-                <option value="其他 Others">其他 (Others)</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label for="description">事件詳細描述<br><span class="hint">Incident Description</span></label>
-            <textarea id="description" name="description" rows="4" placeholder="請詳細說明當時情況及潛在危害... / Please describe the situation and potential hazards in detail..." required></textarea>
-        </div>
-
-        <div class="form-group">
-            <label for="photo">現場照片上傳（100% 原圖高清上傳，可選多張）<br><span class="hint">Upload Photos (Optional, multiple allowed)</span></label>
-            <input type="file" id="photo" name="photo" accept="image/*" multiple>
-            
-            <div id="previewList" class="preview-list"></div>
-        </div>
-
-        <div class="form-group">
-            <label for="reporter">回報人姓名 / 聯絡方式（選填，可匿名）<br><span class="hint">Reporter Name / Contact Info (Optional, can be anonymous)</span></label>
-            <input type="text" id="reporter" name="reporter" placeholder="留空代表匿名回報 / Leave blank for anonymous report">
-        </div>
-
-        <button type="submit" id="submitBtn" class="submit-btn">📩 提交 Email 回報 / Submit Report</button>
-
+        <!-- 共用結果與轉發區塊 -->
         <div id="successMessage" class="success-message">
-            ✅ Email 回報已成功送出！<br>
-            <span style="font-size:0.9em; font-weight:normal;">Email report sent successfully! You can now forward it via WhatsApp below.</span>
+            ✅ 回報已成功送出！<br>
+            <span style="font-size:0.9em; font-weight:normal;">Report sent successfully! You can forward it via WhatsApp below.</span>
         </div>
 
         <button type="button" id="whatsappBtn" class="whatsapp-btn">💬 點擊此處透過 WhatsApp 轉發此 Report</button>
-    </form>
+    </div>
 
     <div class="dev-last-updated" id="devLastUpdated">Last updated: Loading...</div>
 
@@ -143,77 +230,121 @@
                 hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false 
             });
 
+        let currentTab = 'nearmiss';
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            document.querySelector(`.tab-${tabName}`).classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+
+            setTimeout(() => {
+                if (tabName === 'nearmiss' && map) map.invalidateSize();
+                if (tabName === 'unsafe' && unsafeMap) unsafeMap.invalidateSize();
+            }, 200);
+        }
+
         const defaultLat = 22.3193;
         const defaultLng = 114.1694;
-        const map = L.map('map').setView([defaultLat, defaultLng], 13);
 
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
+        // ==================== 地圖 1: Near Miss ====================
+        const map = L.map('map').setView([defaultLat, defaultLng], 13);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
 
         let marker;
-
         function updatePosition(lat, lng) {
             if (marker) {
                 marker.setLatLng([lat, lng]);
             } else {
                 marker = L.marker([lat, lng], { draggable: true }).addTo(map);
                 marker.on('dragend', function (e) {
-                    const position = marker.getLatLng();
-                    updatePosition(position.lat, position.lng);
+                    const pos = marker.getLatLng();
+                    updatePosition(pos.lat, pos.lng);
                 });
             }
-
             document.getElementById('latitude').value = lat.toFixed(6);
             document.getElementById('longitude').value = lng.toFixed(6);
             document.getElementById('coordinates_display').value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
         }
+        map.on('click', e => updatePosition(e.latlng.lat, e.latlng.lng));
 
-        map.on('click', function(e) {
-            updatePosition(e.latlng.lat, e.latlng.lng);
-        });
+        // ==================== 地圖 2: Unsafe/Illegal ====================
+        const unsafeMap = L.map('unsafe_map').setView([defaultLat, defaultLng], 13);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(unsafeMap);
 
+        let unsafeMarker;
+        function updateUnsafePosition(lat, lng) {
+            if (unsafeMarker) {
+                unsafeMarker.setLatLng([lat, lng]);
+            } else {
+                unsafeMarker = L.marker([lat, lng], { draggable: true }).addTo(unsafeMap);
+                unsafeMarker.on('dragend', function (e) {
+                    const pos = unsafeMarker.getLatLng();
+                    updateUnsafePosition(pos.lat, pos.lng);
+                });
+            }
+            document.getElementById('unsafe_latitude').value = lat.toFixed(6);
+            document.getElementById('unsafe_longitude').value = lng.toFixed(6);
+            document.getElementById('unsafe_coordinates_display').value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        }
+        unsafeMap.on('click', e => updateUnsafePosition(e.latlng.lat, e.latlng.lng));
+
+        // GPS 定位
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function(position) {
                 const userLat = position.coords.latitude;
                 const userLng = position.coords.longitude;
                 map.setView([userLat, userLng], 16);
+                unsafeMap.setView([userLat, userLng], 16);
                 updatePosition(userLat, userLng);
+                updateUnsafePosition(userLat, userLng);
             });
         }
 
-        const photoInput = document.getElementById('photo');
-        const previewList = document.getElementById('previewList');
-        let rawFilesArray = [];
+        // ==================== 照片預覽與 Base64 工具 ====================
+        let nearmissFiles = [];
+        let unsafeFiles = [];
 
-        photoInput.addEventListener('change', function(event) {
-            const files = Array.from(event.target.files);
-            files.forEach(file => {
-                rawFilesArray.push(file);
+        function setupPhotoUploader(inputId, previewId, fileArray) {
+            const input = document.getElementById(inputId);
+            const preview = document.getElementById(previewId);
+
+            input.addEventListener('change', function(event) {
+                const files = Array.from(event.target.files);
+                files.forEach(file => fileArray.push(file));
+                renderPreviews(preview, fileArray);
+                input.value = '';
             });
-            renderPreviews();
-            photoInput.value = '';
-        });
+        }
 
-        function renderPreviews() {
-            previewList.innerHTML = '';
-            rawFilesArray.forEach((file, index) => {
+        function renderPreviews(container, fileArray) {
+            container.innerHTML = '';
+            fileArray.forEach((file, index) => {
                 const item = document.createElement('div');
                 item.className = 'preview-item';
                 const objectUrl = URL.createObjectURL(file);
                 item.innerHTML = `
                     <img src="${objectUrl}" />
-                    <button type="button" class="remove-btn" onclick="removePhoto(${index})">✕</button>
+                    <button type="button" class="remove-btn" onclick="removeFile('${container.id}', ${index})">✕</button>
                 `;
-                previewList.appendChild(item);
+                container.appendChild(item);
             });
         }
 
-        window.removePhoto = function(index) {
-            rawFilesArray.splice(index, 1);
-            renderPreviews();
+        window.removeFile = function(containerId, index) {
+            if (containerId === 'previewList') {
+                nearmissFiles.splice(index, 1);
+                renderPreviews(document.getElementById('previewList'), nearmissFiles);
+            } else {
+                unsafeFiles.splice(index, 1);
+                renderPreviews(document.getElementById('unsafePreviewList'), unsafeFiles);
+            }
         }
+
+        setupPhotoUploader('photo', 'previewList', nearmissFiles);
+        setupPhotoUploader('unsafe_photo', 'unsafePreviewList', unsafeFiles);
 
         function fileToBase64(file) {
             return new Promise((resolve, reject) => {
@@ -237,31 +368,27 @@
                 body: JSON.stringify(payload)
             });
 
-            if (!response.ok) {
-                throw new Error('伺服器連線失敗');
-            }
-
+            if (!response.ok) throw new Error('伺服器連線失敗');
             const result = await response.json();
-            if (result.status === 'success') {
-                return result.url;
-            } else {
-                throw new Error(result.message || 'Drive 上傳失敗');
-            }
+            if (result.status === 'success') return result.url;
+            throw new Error(result.message || 'Drive 上傳失敗');
         }
 
-        const datetimeInput = document.getElementById('incident_datetime');
+        // 初始化時間
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        datetimeInput.value = now.toISOString().slice(0, 16);
+        const defaultTime = now.toISOString().slice(0, 16);
+        document.getElementById('incident_datetime').value = defaultTime;
+        document.getElementById('unsafe_datetime').value = defaultTime;
 
-        const form = document.getElementById('nearMissForm');
+        // ==================== 表單 1 提交: Near Miss ====================
+        const nearMissForm = document.getElementById('nearMissForm');
         const submitBtn = document.getElementById('submitBtn');
         const successMessage = document.getElementById('successMessage');
         const whatsappBtn = document.getElementById('whatsappBtn');
 
-        form.addEventListener('submit', async function(e) {
+        nearMissForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-
             const lat = document.getElementById('latitude').value;
             const lng = document.getElementById('longitude').value;
 
@@ -272,36 +399,26 @@
             }
 
             submitBtn.disabled = true;
-            submitBtn.innerText = "⏳ 正在將原圖上傳至 Google Drive...";
-
+            submitBtn.innerText = "⏳ 正在處理照片...";
             let photosHtml = '';
 
             try {
-                if (rawFilesArray.length > 0) {
+                if (nearmissFiles.length > 0) {
                     const imageUrls = [];
-                    for (let i = 0; i < rawFilesArray.length; i++) {
-                        submitBtn.innerText = `⏳ 正在上傳第 ${i + 1}/${rawFilesArray.length} 張原圖...`;
-                        const driveLink = await uploadRawFileToGoogleDrive(rawFilesArray[i]);
+                    for (let i = 0; i < nearmissFiles.length; i++) {
+                        submitBtn.innerText = `⏳ 正在上傳第 ${i + 1}/${nearmissFiles.length} 張原圖...`;
+                        const driveLink = await uploadRawFileToGoogleDrive(nearmissFiles[i]);
                         imageUrls.push(driveLink);
                     }
-
-                    // 💡 簡化後的相片連結格式：點擊開啓相片 X
-                    photosHtml = `
-                        <hr style="border: 0; border-top: 1px solid #ccc; margin: 15px 0;">
-                        <p style="margin-bottom: 8px; font-weight: bold;">📷 現場照片：</p>
-                    ` + imageUrls.map((url, index) => `
-                        <div style="margin-bottom: 8px;">
-                            📁 <a href="${url}" target="_blank" style="font-size: 13px; color: #007bff; font-weight: bold; text-decoration: underline;">點擊開啓相片 ${index + 1}</a>
-                        </div>
-                    `).join('');
+                    photosHtml = `<hr style="border: 0; border-top: 1px solid #ccc; margin: 15px 0;"><p style="margin-bottom: 8px; font-weight: bold;">📷 現場照片：</p>` + 
+                        imageUrls.map((url, index) => `<div style="margin-bottom: 8px;">📁 <a href="${url}" target="_blank" style="font-size: 13px; color: #007bff; font-weight: bold; text-decoration: underline;">點擊開啓相片 ${index + 1}</a></div>`).join('');
                 }
 
                 submitBtn.innerText = "⏳ 正在傳送 Email...";
-
                 const sendTime = new Date().toLocaleString('zh-HK', { hour12: false });
                 
-                const rawCategory = document.getElementById('category').value;
-                const cleanCategory = rawCategory.replace(/\//g, ' ');
+                // 💡 加入 [Near Miss] 前綴標籤
+                const cleanCategory = "[Near Miss] " + document.getElementById('category').value.replace(/\//g, ' ');
 
                 const templateParams = {
                     send_time: sendTime,
@@ -315,7 +432,6 @@
                 };
 
                 await emailjs.send('service_dc202304', 'template_c35i3of', templateParams);
-
                 submitBtn.innerText = "✅ Email 已成功提交 / Email Submitted";
                 successMessage.style.display = 'block';
                 whatsappBtn.style.display = 'block';
@@ -328,29 +444,95 @@
             }
         });
 
-        whatsappBtn.addEventListener('click', function() {
-            if (rawFilesArray.length > 0) {
-                alert("⚠️ 溫馨提示 / Notice：\n\n網頁文字已自動帶入 WhatsApp，但「現場照片」受系統限制無法自動夾帶。\n\n請在跳轉至 WhatsApp 後，手動點擊附件（📎）或相機按鈕重新上傳相片！");
+        // ==================== 表單 2 提交: 違規/不安全舉報 ====================
+        const unsafeForm = document.getElementById('unsafeForm');
+        const unsafeSubmitBtn = document.getElementById('unsafeSubmitBtn');
+
+        unsafeForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const lat = document.getElementById('unsafe_latitude').value;
+            const lng = document.getElementById('unsafe_longitude').value;
+
+            if (!lat || !lng) {
+                alert("⚠️ 請在地圖上點選標示違規位置！");
+                document.getElementById('unsafe_map').scrollIntoView({ behavior: 'smooth' });
+                return;
             }
 
-            const datetime = document.getElementById('incident_datetime').value.replace('T', ' ') || '未提供 / Not provided';
-            const coords = document.getElementById('coordinates_display').value;
-            const location = document.getElementById('location_name').value || '無 / None';
-            const category = document.getElementById('category').value || '未選擇 / Not selected';
-            const description = document.getElementById('description').value || '無 / None';
-            const reporter = document.getElementById('reporter').value || '匿名 / Anonymous';
+            unsafeSubmitBtn.disabled = true;
+            unsafeSubmitBtn.innerText = "⏳ 正在處理證據照片...";
+            let photosHtml = '';
 
-            let message = `⚠️ *Near Miss Report 工地險兆快報*\n\n`;
-            message += `📅 *發生時間/Date & Time:* ${datetime}\n`;
-            message += `📍 *經緯度/Coordinates:* ${coords}\n`;
-            message += `🏢 *具體位置/Location:* ${location}\n`;
-            message += `🏷️ *事件類型/Category:* ${category}\n`;
-            message += `📝 *事件描述/Description:* ${description}\n`;
-            message += `👤 *回報人/Reporter:* ${reporter}\n\n`;
-            message += `🗺️ *地圖連結:* https://www.google.com/maps?q=${coords.replace(/\s+/g, '')}\n`;
+            try {
+                if (unsafeFiles.length > 0) {
+                    const imageUrls = [];
+                    for (let i = 0; i < unsafeFiles.length; i++) {
+                        unsafeSubmitBtn.innerText = `⏳ 正在上傳第 ${i + 1}/${unsafeFiles.length} 張證據照片...`;
+                        const driveLink = await uploadRawFileToGoogleDrive(unsafeFiles[i]);
+                        imageUrls.push(driveLink);
+                    }
+                    photosHtml = `<hr style="border: 0; border-top: 1px solid #ccc; margin: 15px 0;"><p style="margin-bottom: 8px; font-weight: bold;">📷 違規現場照片：</p>` + 
+                        imageUrls.map((url, index) => `<div style="margin-bottom: 8px;">📁 <a href="${url}" target="_blank" style="font-size: 13px; color: #dc3545; font-weight: bold; text-decoration: underline;">點擊開啓照片 ${index + 1}</a></div>`).join('');
+                }
 
-            const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
+                unsafeSubmitBtn.innerText = "⏳ 正在傳送舉報信...";
+                const sendTime = new Date().toLocaleString('zh-HK', { hour12: false });
+                
+                // 💡 加入 [舉報/Illegal] 前綴標籤
+                const cleanCategory = "[舉報/Illegal] " + document.getElementById('unsafe_category').value.replace(/\//g, ' ');
+                const targetInfo = document.getElementById('unsafe_target').value || '未註明 / Not specified';
+                const fullDescription = `【涉事單位/人員】: ${targetInfo}\n【違規細節】: ${document.getElementById('unsafe_description').value}`;
+
+                const templateParams = {
+                    send_time: sendTime,
+                    datetime: document.getElementById('unsafe_datetime').value.replace('T', ' '),
+                    coords: document.getElementById('unsafe_coordinates_display').value,
+                    location: document.getElementById('unsafe_location').value,
+                    category: cleanCategory,
+                    description: fullDescription,
+                    reporter: document.getElementById('unsafe_reporter').value || '機密匿名舉報 / Confidential Anonymous',
+                    photos_html: photosHtml
+                };
+
+                await emailjs.send('service_dc202304', 'template_c35i3of', templateParams);
+                unsafeSubmitBtn.innerText = "✅ 舉報已成功送出 / Violation Report Submitted";
+                successMessage.style.display = 'block';
+                whatsappBtn.style.display = 'block';
+                whatsappBtn.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (error) {
+                alert("❌ 舉報傳送失敗: " + error.message);
+                unsafeSubmitBtn.disabled = false;
+                unsafeSubmitBtn.innerText = "🚨 提交違規舉報 / Submit Violation Report";
+            }
+        });
+
+        // WhatsApp 轉發
+        whatsappBtn.addEventListener('click', function() {
+            let message = '';
+            if (currentTab === 'nearmiss') {
+                const datetime = document.getElementById('incident_datetime').value.replace('T', ' ');
+                const coords = document.getElementById('coordinates_display').value;
+                const location = document.getElementById('location_name').value;
+                const category = document.getElementById('category').value;
+                const description = document.getElementById('description').value;
+                const reporter = document.getElementById('reporter').value || '匿名';
+
+                message = `⚠️ *Near Miss Report 工地險兆快報*\n\n📅 *時間:* ${datetime}\n📍 *經緯度:* ${coords}\n🏢 *位置:* ${location}\n🏷️ *類型:* ${category}\n📝 *描述:* ${description}\n👤 *回報人:* ${reporter}\n\n🗺️ *地圖:* https://www.google.com/maps?q=${coords.replace(/\s+/g, '')}`;
+            } else {
+                const datetime = document.getElementById('unsafe_datetime').value.replace('T', ' ');
+                const coords = document.getElementById('unsafe_coordinates_display').value;
+                const location = document.getElementById('unsafe_location').value;
+                const category = document.getElementById('unsafe_category').value;
+                const target = document.getElementById('unsafe_target').value || '未提供';
+                const description = document.getElementById('unsafe_description').value;
+                const reporter = document.getElementById('unsafe_reporter').value || '匿名';
+
+                message = `🚨 *不安全/違法事項舉報 Report*\n\n📅 *時間:* ${datetime}\n📍 *經緯度:* ${coords}\n🏢 *地點:* ${location}\n🏷️ *違規類別:* ${category}\n👤 *涉事對象:* ${target}\n📝 *詳細描述:* ${description}\n🔒 *舉報人:* ${reporter}\n\n🗺️ *地圖:* https://www.google.com/maps?q=${coords.replace(/\s+/g, '')}`;
+            }
+
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank');
         });
     </script>
 </body>
