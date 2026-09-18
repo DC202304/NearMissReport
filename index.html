@@ -81,7 +81,7 @@
 
         <!-- ==================== 分頁 1: Near Miss 險兆快報 ==================== -->
         <div id="tab-nearmiss" class="tab-content active">
-            <h2>⚠️ Near Miss Report 工地險兆失快報</h2>
+            <h2>⚠️ Near Miss Report 工地險失快報</h2>
             <p class="subtitle">請協助填寫您發現的潛在危險或工地險失事件。<br><span class="hint">Please report any near miss or potential hazards identified on site.</span></p>
 
             <form id="nearMissForm">
@@ -187,8 +187,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="unsafe_target">涉事單位 / 承建商 / 人員描述（若已知）<br><span class="hint">Involved Subcontractor / Vehicle / Person</span></label>
-                    <input type="text" id="unsafe_target" placeholder="例如：XX分判商工人 / 車牌號碼 AB1234">
+                    <label for="unsafe_target">涉事單位 / 承建商 / 人員描述（若已知）<br><span class="hint">Involved Subcontractor / Vehicle / Person Description (If known)</span></label>
+                    <input type="text" id="unsafe_target" placeholder="例如：XX分判商工人 / 車牌 AB1234 / 戴黃色頭盔者 (e.g. Subcontractor worker / Vehicle No. AB1234 / Person in yellow helmet)">
                 </div>
 
                 <div class="form-group">
@@ -420,7 +420,7 @@
                 submitBtn.innerText = "⏳ 正在傳送 Email...";
                 const sendTime = new Date().toLocaleString('zh-HK', { hour12: false });
                 
-                // 💡 加入 [Near Miss] 前綴標籤
+                // [Near Miss] 前綴標籤（已將選單內的斜線全數 replace 清除）
                 const cleanCategory = "[Near Miss] " + document.getElementById('category').value.replace(/\//g, ' ');
 
                 const templateParams = {
@@ -482,10 +482,10 @@
                 unsafeSubmitBtn.innerText = "⏳ 正在傳送舉報信...";
                 const sendTime = new Date().toLocaleString('zh-HK', { hour12: false });
                 
-                // 💡 加入 [舉報/Illegal] 前綴標籤
-                const cleanCategory = "[舉報/Illegal] " + document.getElementById('unsafe_category').value.replace(/\//g, ' ');
+                // 💡 前綴改為 [舉報 Illegal] 無斜線，徹底解決 &#x2F; 亂碼問題
+                const cleanCategory = "[舉報 Illegal] " + document.getElementById('unsafe_category').value.replace(/\//g, ' ');
                 const targetInfo = document.getElementById('unsafe_target').value || '未註明 / Not specified';
-                const fullDescription = `【涉事單位/人員】: ${targetInfo}\n【違規細節】: ${document.getElementById('unsafe_description').value}`;
+                const fullDescription = `【涉事對象 / Involved Target】: ${targetInfo}\n【違規細節 / Violation Details】: ${document.getElementById('unsafe_description').value}`;
 
                 const templateParams = {
                     send_time: sendTime,
