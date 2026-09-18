@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Near Miss Report 工地險兆快報</title>
+    <title>Near Miss Report 工地險失快報</title>
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -60,8 +60,8 @@
 </head>
 <body>
 
-    <h2>⚠️ Near Miss Report 工地險兆快報</h2>
-    <p class="subtitle">請協助填寫您發現的潛在危險或工地險兆事件。<br><span style="font-size: 0.9em; color: #666;">Please report any near miss or potential hazards identified on site.</span></p>
+    <h2>⚠️ Near Miss Report 工地險失快報</h2>
+    <p class="subtitle">請協助填寫您發現的潛在危險或工地險失事件。<br><span style="font-size: 0.9em; color: #666;">Please report any near miss or potential hazards identified on site.</span></p>
 
     <form id="nearMissForm">
         <div class="form-group">
@@ -91,6 +91,9 @@
             <label for="category">事件類型<br><span class="hint">Incident Category</span></label>
             <select id="category" name="category" required>
                 <option value="">請選擇 / Please Select</option>
+                <option value="密閉空間工作 Confined Space Works">密閉空間工作安全 (Confined Space Works)</option>
+                <option value="道路工作安全 Road Work Safety">道路工作安全 (Road Work Safety)</option>
+                <option value="地盤整潔 Housekeeping">地盤整潔 (Housekeeping)</option>
                 <option value="跌倒/絆倒 Slip/Trip/Fall">跌倒 / 絆倒風險 (Slip / Trip / Fall Hazard)</option>
                 <option value="設備故障 Equipment Fault">設備 / 工具故障 (Equipment / Tool Fault)</option>
                 <option value="物體掉落 Falling Object">物體掉落風險 (Falling Object Hazard)</option>
